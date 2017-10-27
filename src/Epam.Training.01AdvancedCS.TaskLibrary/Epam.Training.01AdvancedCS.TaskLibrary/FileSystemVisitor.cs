@@ -53,7 +53,9 @@ namespace Epam.Training._01AdvancedCS.TaskLibrary
             return Task.Run(() =>
             {
                 Status = FileSystemVisitorStatus.Searching;
-                var items = GetFilteredItems(rootDir).ToList();
+                var items = UseSecondMethod
+                    ? GetFilteredItemsSecondWay(rootDir).ToList()
+                    : GetFilteredItems(rootDir).ToList();
                 SearchCompletedEvent?.Invoke(items);
             });
         }
@@ -111,6 +113,53 @@ namespace Epam.Training._01AdvancedCS.TaskLibrary
             }
         }
 
+        private IEnumerable<FileSystemInfoBase> GetFilteredItemsSecondWay(DirectoryInfoBase directory)
+        {
+            var breakSearch = false;
+            foreach (var dir in directory.EnumerateDirectories())
+            {
+                if (Status == FileSystemVisitorStatus.Stopped)
+                    break;
+
+                var excludeItem = false;
+                DirectoryFoundEvent?.Invoke(dir, ref breakSearch, ref excludeItem);
+                if (!breakSearch && !excludeItem)
+                    foreach (var i in GetFilteredItemsSecondWay(dir)) //going recursion here
+                        yield return i;
+                if (breakSearch)
+                    Status = FileSystemVisitorStatus.Stopped;
+                if (excludeItem)
+                    continue;
+                if (Filter != null && !Filter.Invoke(dir))
+                    continue;
+
+                yield return dir;
+            }
+
+            foreach (var file in GetFilteredFiles(directory))
+                yield return file;
+        }
+
+        private IEnumerable<FileInfoBase> GetFilteredFiles(DirectoryInfoBase directory)
+        {
+            var breakSearch = false;
+            foreach (var file in directory.EnumerateFiles())
+            {
+                if (Status == FileSystemVisitorStatus.Stopped)
+                    break;
+
+                var excludeItem = false;
+                FileFoundEvent?.Invoke(file, ref breakSearch, ref excludeItem);
+                if (Filter != null && !Filter.Invoke(file))
+                    continue;
+                FilterItemActions(file, ref breakSearch, ref excludeItem);
+                if (breakSearch)
+                    Status = FileSystemVisitorStatus.Stopped;
+                if (!excludeItem)
+                    yield return file;
+            }
+        }
+
         private void FilterItemActions(FileSystemInfoBase item, ref bool breakSearch, ref bool excludeItem)
         {
             var filteredDir = item as DirectoryInfoBase;
@@ -143,6 +192,8 @@ namespace Epam.Training._01AdvancedCS.TaskLibrary
         /// </value>
         /// <remarks>Return <see langword="true"/> to exclude item from the search process.</remarks>
         public Func<FileSystemInfoBase, bool> Filter { get; set; }
+
+        public bool UseSecondMethod { get; set; } = false;
 
         private readonly IFileSystem _fileSystem;
     }

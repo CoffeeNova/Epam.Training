@@ -3,6 +3,7 @@ using Epam.Training._01AdvancedCS.TaskLibrary;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
@@ -68,6 +69,26 @@ namespace Epam.Training._01AdvancedCS.TaskLibrary.Tests
                 .Returns(_fileSystemCollection4);
             _subSubRootDir1Mock.Setup(x => x.GetFileSystemInfos())
                 .Returns(_fileSystemCollection3);
+
+            _rootDirMock.Setup(x => x.EnumerateDirectories())
+                .Returns(_fileSystemCollection1.Where(x => typeof(DirectoryInfoBase) == x.GetType().BaseType).Select(x => x as DirectoryInfoBase));
+            _rootDirMock.Setup(x => x.EnumerateFiles())
+                .Returns(_fileSystemCollection1.Where(x => typeof(FileInfoBase) == x.GetType().BaseType).Select(x => x as FileInfoBase));
+
+            _subRootDir1Mock.Setup(x => x.EnumerateDirectories())
+                .Returns(_fileSystemCollection2.Where(x => typeof(DirectoryInfoBase) == x.GetType().BaseType).Select(x => x as DirectoryInfoBase));
+            _subRootDir1Mock.Setup(x => x.EnumerateFiles())
+                .Returns(_fileSystemCollection2.Where(x => typeof(FileInfoBase) == x.GetType().BaseType).Select(x => x as FileInfoBase));
+
+            _subRootDir2Mock.Setup(x => x.EnumerateDirectories())
+                .Returns(_fileSystemCollection4.Where(x => typeof(DirectoryInfoBase) == x.GetType().BaseType).Select(x => x as DirectoryInfoBase));
+            _subRootDir2Mock.Setup(x => x.EnumerateFiles())
+                .Returns(_fileSystemCollection4.Where(x => typeof(FileInfoBase) == x.GetType().BaseType).Select(x => x as FileInfoBase));
+
+            _subSubRootDir1Mock.Setup(x => x.EnumerateDirectories())
+                .Returns(_fileSystemCollection3.Where(x => typeof(DirectoryInfoBase) == x.GetType().BaseType).Select(x => x as DirectoryInfoBase));
+            _subSubRootDir1Mock.Setup(x => x.EnumerateFiles())
+                .Returns(_fileSystemCollection3.Where(x => typeof(FileInfoBase) == x.GetType().BaseType).Select(x => x as FileInfoBase));
 
             _directoryInfoFactoryMock.Setup(x => x.FromDirectoryName(RootPath))
                 .Returns(_rootDirMock.Object);
@@ -224,6 +245,202 @@ namespace Epam.Training._01AdvancedCS.TaskLibrary.Tests
             Assert.IsNotNull(actual);
             Assert.AreEqual(expected.Count(), 4);
             Assert.IsTrue(comparisonResult.AreEqual, comparisonResult.DifferencesString);
+        }
+
+        [TestMethod]
+        public void Should_Search_All_Items_2()
+        {
+            //Arrange
+            var fileSystemVisitor = new FileSystemVisitor(_fileSystemMock.Object) { UseSecondMethod = true };
+            List<FileSystemInfoBase> actual = null;
+            fileSystemVisitor.SearchCompletedEvent += delegate (IEnumerable<FileSystemInfoBase> s)
+            {
+                actual = s.ToList();
+            };
+            var expected = new List<FileSystemInfoBase>
+            {
+                _subRootDir1Mock.Object,
+                _subRootDir2Mock.Object,
+                _subSubRootDir1Mock.Object,
+                _fileInfo1Mock.Object,
+                _fileInfo2Mock.Object,
+                _fileInfo3Mock.Object,
+                _fileInfo4Mock.Object
+            };
+            _config = new ComparisonConfig { IgnoreCollectionOrder = true, };
+            var compareLogic = new CompareLogic(_config);
+
+            //act
+            fileSystemVisitor.StartSearch(RootPath).Wait();
+
+            //Assert
+            var comparisonResult = compareLogic.Compare(expected.Select(x => x.FullName), actual.Select(x => x.FullName));
+            Assert.IsNotNull(actual);
+            Assert.AreEqual(expected.Count(), 7);
+            Assert.IsTrue(comparisonResult.AreEqual, comparisonResult.DifferencesString);
+        }
+
+        [TestMethod]
+        public void Should_Return_Items_Where_Names_Includes_1_2()
+        {
+            //Arrange
+            var fileSystemVisitor = new FileSystemVisitor(_fileSystemMock.Object, x => x.Name.Contains('1')) { UseSecondMethod = true };
+            List<FileSystemInfoBase> actual = null;
+            fileSystemVisitor.SearchCompletedEvent += delegate (IEnumerable<FileSystemInfoBase> s)
+            {
+                actual = s.ToList();
+            };
+            var expected = new List<FileSystemInfoBase>
+            {
+                _subRootDir1Mock.Object,
+                _subSubRootDir1Mock.Object,
+                _fileInfo1Mock.Object,
+            };
+            _config = new ComparisonConfig { IgnoreCollectionOrder = true, };
+            var compareLogic = new CompareLogic(_config);
+
+            //act
+            fileSystemVisitor.StartSearch(RootPath).Wait();
+
+            //Assert
+            var comparisonResult = compareLogic.Compare(expected.Select(x => x.FullName), actual.Select(x => x.FullName));
+            Assert.IsNotNull(actual);
+            Assert.AreEqual(expected.Count(), 3);
+            Assert.IsTrue(comparisonResult.AreEqual, comparisonResult.DifferencesString);
+        }
+
+        [TestMethod]
+        public void Should_Return_Result_Where_Names_Not_Contains_1_v2()
+        {
+            //Arrange
+            var fileSystemVisitor = new FileSystemVisitor(_fileSystemMock.Object) { UseSecondMethod = true };
+            List<FileSystemInfoBase> actual = null;
+            fileSystemVisitor.SearchCompletedEvent += delegate (IEnumerable<FileSystemInfoBase> s)
+            {
+                actual = s.ToList();
+            };
+            fileSystemVisitor.DirectoryFoundEvent += delegate (DirectoryInfoBase dir, ref bool breakSearch, ref bool excludeDir)
+            {
+                if (dir.Name.Contains('1'))
+                    excludeDir = true;
+            };
+
+            var expected = new List<FileSystemInfoBase>
+            {
+                _subRootDir2Mock.Object,
+                _fileInfo1Mock.Object,
+            };
+            _config = new ComparisonConfig { IgnoreCollectionOrder = true, };
+            var compareLogic = new CompareLogic(_config);
+
+            //act
+            fileSystemVisitor.StartSearch(RootPath).Wait();
+
+            //Assert
+            var comparisonResult = compareLogic.Compare(expected.Select(x => x.FullName), actual.Select(x => x.FullName));
+            Assert.IsNotNull(actual);
+            Assert.AreEqual(expected.Count(), 2);
+            Assert.IsTrue(comparisonResult.AreEqual, comparisonResult.DifferencesString);
+        }
+
+        [TestMethod]
+        public void Should_Break_Search_After_Found_File_With_Name_file2_v2()
+        {
+            //Arrange
+            var fileSystemVisitor = new FileSystemVisitor(_fileSystemMock.Object) { UseSecondMethod = true };
+            List<FileSystemInfoBase> actual = null;
+            fileSystemVisitor.SearchCompletedEvent += delegate (IEnumerable<FileSystemInfoBase> s)
+            {
+                actual = s.ToList();
+            };
+            fileSystemVisitor.FileFoundEvent += delegate (FileInfoBase file, ref bool breakSearch, ref bool excludeDir)
+            {
+                if (file.Name.Equals("file2"))
+                    breakSearch = true;
+            };
+
+            var expected = new List<FileSystemInfoBase>
+            {
+                _subRootDir1Mock.Object,
+                _subSubRootDir1Mock.Object,
+                _fileInfo2Mock.Object,
+                _fileInfo4Mock.Object
+            };
+            _config = new ComparisonConfig { IgnoreCollectionOrder = true, };
+            var compareLogic = new CompareLogic(_config);
+
+            //act
+            fileSystemVisitor.StartSearch(RootPath).Wait();
+
+            //Assert
+            var comparisonResult = compareLogic.Compare(expected.Select(x => x.FullName), actual.Select(x => x.FullName));
+            Assert.IsNotNull(actual);
+            Assert.AreEqual(expected.Count(), 4);
+            Assert.IsTrue(comparisonResult.AreEqual, comparisonResult.DifferencesString);
+        }
+
+        [TestMethod]
+        public void Speed_Test()
+        {
+            // Arrange
+            var size = 100000;
+            var fileCollection1 = new FileSystemInfoBase[size];
+            var fileCollection2 = new FileInfoBase[size];
+            for (var i = 0; i < size; i++)
+            {
+                fileCollection1[i] = new Mock<FileInfoBase>().Object;
+                fileCollection2[i] = (FileInfoBase) fileCollection1[i];
+            }
+
+            var rootDirMock = new Mock<DirectoryInfoBase>();
+
+            SetupFileInfoBaseStub(rootDirMock, "rootDir", @"D:\\rootDir");
+            rootDirMock.Setup(x => x.GetFileSystemInfos())
+                .Returns(fileCollection1);
+            rootDirMock.Setup(x => x.EnumerateFiles())
+                .Returns(fileCollection2);
+
+            var directoryInfoFactoryMock = new Mock<IDirectoryInfoFactory>();
+            directoryInfoFactoryMock.Setup(x => x.FromDirectoryName(RootPath))
+                .Returns(rootDirMock.Object);
+
+            var fileSystemMock = new Mock<IFileSystem>();
+            fileSystemMock.Setup(x => x.DirectoryInfo)
+                .Returns(_directoryInfoFactoryMock.Object);
+
+            var fileSystemVisitor1 = new FileSystemVisitor(fileSystemMock.Object);
+            var fileSystemVisitor2 = new FileSystemVisitor(fileSystemMock.Object) { UseSecondMethod = true };
+            var stopWatch1 = Stopwatch.StartNew();
+            var stopWatch2 = Stopwatch.StartNew();
+
+            _config = new ComparisonConfig { IgnoreCollectionOrder = true, };
+            var compareLogic = new CompareLogic(_config);
+
+            List<FileSystemInfoBase> first = null;
+            fileSystemVisitor1.SearchCompletedEvent += delegate (IEnumerable<FileSystemInfoBase> s)
+            {
+                first = s.ToList();
+                stopWatch1.Stop();
+            };
+            List<FileSystemInfoBase> second = null;
+            fileSystemVisitor2.SearchCompletedEvent += delegate (IEnumerable<FileSystemInfoBase> s)
+            {
+                second = s.ToList();
+                stopWatch2.Stop();
+            };
+
+            //Act
+            stopWatch1.Start();
+            fileSystemVisitor1.StartSearch(RootPath).Wait();
+
+            stopWatch2.Start();
+            fileSystemVisitor2.StartSearch(RootPath).Wait();
+
+            //Assert
+            var comparisonResult = compareLogic.Compare(first.Select(x => x.FullName), second.Select(x => x.FullName));
+            Assert.IsTrue(comparisonResult.AreEqual, comparisonResult.DifferencesString);
+            TestContext.WriteLine($"First method time: {stopWatch1.ElapsedMilliseconds}");
+            TestContext.WriteLine($"Second method time: {stopWatch2.ElapsedMilliseconds}");
         }
 
         [TestCleanup]
