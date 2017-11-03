@@ -73,9 +73,9 @@ namespace Epam.Training._02ExceptionHandling
         {
             Console.Title = "Generate reports tool";
 
-            Console.SetWindowPosition(0, 0);   // sets window position to upper left
-            Console.SetBufferSize(120, 100);   // make sure buffer is bigger than window
-            Console.SetWindowSize(119, 54);   //set window size to almost full screen 
+            //Console.SetWindowPosition(0, 0);   // sets window position to upper left
+            //Console.SetBufferSize(120, 100);   // make sure buffer is bigger than window
+            //Console.SetWindowSize(119, 54);   //set window size to almost full screen 
             Console.ForegroundColor = ConsoleColor.DarkBlue;
             Console.BackgroundColor = ConsoleColor.DarkGreen;
         }
