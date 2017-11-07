@@ -53,6 +53,11 @@
     <Compile Include="Data\Supplier.cs" />
     <Compile Include="LinqSamples.cs" />
     <Compile Include="LinqSamples.Task1.cs" />
+    <Compile Include="LinqSamples.Task2.cs" />
+    <Compile Include="LinqSamples.Task8.cs" />
+    <Compile Include="LinqSamples.Task7.cs" />
+    <Compile Include="LinqSamples.Task6.cs" />
+    <Compile Include="LinqSamples.Task5.cs" />
     <Compile Include="ObjectDumper.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -76,7 +81,7 @@
     <EmbeddedResource Include="SampleForm.resx">
       <DependentUpon>SampleForm.cs</DependentUpon>
     </EmbeddedResource>
-    <Compile Include="LinqSamples.Task2.cs" />
+    <Compile Include="LinqSamples.Task4.cs" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
